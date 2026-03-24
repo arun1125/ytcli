@@ -1,45 +1,87 @@
-# Competitor Analysis Workflow
+# Competitor Analysis
 
 ## When to use
-User wants to analyze a YouTube channel, compare channels, or find content gaps.
+- "Analyze this channel"
+- "What's @channel doing?"
+- "Compare these two channels"
+- "What content gaps does @channel have?"
 
-## Steps
+## Prerequisites
+- `ytcli init` (run once)
+- Channels must be scanned first — all analysis reads from local DB
+- API key optional but recommended for stats: `ytcli config api_key YOUR_KEY`
 
-### 1. Scan the channel(s)
+## Full workflow
+
+### Step 1: Scan target channels
 ```bash
-ytcli scan @competitor_channel --limit 100
+ytcli scan @competitor --limit 100
 ```
+This scrapes all video metadata (titles, dates, durations, views) into the local database. Takes 10-30 seconds depending on channel size.
 
-### 2. Get channel stats (requires API key)
+### Step 2: Get live stats (requires API key)
 ```bash
-ytcli stats @competitor_channel
+ytcli stats @competitor
 ```
+Returns: subscriber count, total views, video count. Updates the DB record.
 
-### 3. Find their best content
+### Step 3: Analyze their title patterns
 ```bash
-ytcli top @competitor_channel --by views --limit 20
+ytcli hooks @competitor --limit 50
 ```
+Returns:
+- `avg_title_length` — how long their titles are
+- `common_words` — top 20 words they use (stopwords excluded)
+- `question_title_pct` — % of titles that are questions
+- `number_in_title_pct` — % with numbers ("7 Tips", "Top 10")
+- `bracket_pct` — % with brackets ("[2024]", "(Full Guide)")
+- `caps_word_pct` — % with ALL CAPS words
+- `top_patterns` — ranked list of which patterns they use most
 
-### 4. Analyze their patterns
+### Step 4: Analyze their upload schedule
 ```bash
-ytcli hooks @competitor_channel --limit 20
-ytcli calendar @competitor_channel
+ytcli calendar @competitor
 ```
+Returns: day-of-week distribution, videos/week, longest streak, longest gap.
 
-### 5. Compare with own channel (if applicable)
+### Step 5: Find their best content
 ```bash
-ytcli compare @my_channel @competitor_channel
-ytcli gaps @competitor_channel
+ytcli top @competitor --by views --limit 20
 ```
+Shows their highest-performing videos. Use `--by engagement` if API key is set.
 
-### 6. Optional: Feed insights to Eureka
+### Step 6: Find content gaps
 ```bash
-ytcli export @competitor_channel --format json > /tmp/competitor.json
-# Agent can summarize and pipe to eureka dump
+ytcli gaps @competitor
 ```
+Returns topics they've only covered 1-2 times (low-frequency) — potential opportunities.
 
-## Output interpretation
-- `hooks` shows title patterns, common words, avg title length
-- `gaps` shows topics with search demand but no coverage
-- `compare` gives side-by-side metrics
-- `calendar` shows posting schedule and consistency
+### Step 7: Compare two channels
+```bash
+ytcli compare @channel1 @channel2
+```
+Side-by-side: upload frequency, avg duration, avg views, avg title length, topic overlap (Jaccard similarity).
+
+### Step 8: Mine comments for pain points
+```bash
+ytcli comments "https://youtube.com/watch?v=THEIR_TOP_VIDEO" --sort top --limit 200
+```
+Top comments reveal what the audience wants more of.
+
+## Interpreting results
+
+| Signal | What it means |
+|--------|--------------|
+| High topic overlap + lower views | You're competing head-on, need differentiation |
+| Low topic overlap | Different niches, gaps are opportunities |
+| High question_title_pct | Their audience responds to curiosity-driven titles |
+| High number_in_title_pct | Listicle format works in this niche |
+| Low upload frequency + high views | Quality over quantity niche |
+| Consistent calendar | Algorithm-friendly, audience expects schedule |
+
+## Quick version (3 commands)
+```bash
+ytcli scan @competitor --limit 50
+ytcli hooks @competitor
+ytcli gaps @competitor
+```

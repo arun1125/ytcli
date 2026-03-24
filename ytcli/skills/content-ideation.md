@@ -1,51 +1,69 @@
-# Content Ideation Workflow
+# Content Ideation
 
 ## When to use
-User wants video ideas, is brainstorming, or wants to find content gaps.
+- "Give me video ideas"
+- "What should I make next?"
+- "Find me content gaps"
+- "What topics are underserved?"
 
-## Steps
+## Prerequisites
+- At least one channel scanned: `ytcli scan @channel --limit 100`
+- More scanned channels = better ideas
 
-### 1. Scan relevant channels for inspiration
+## Full workflow
+
+### Step 1: Scan inspiration channels
 ```bash
-ytcli scan @channel1 --limit 50
-ytcli scan @channel2 --limit 50
+ytcli scan @inspiration1 --limit 100
+ytcli scan @inspiration2 --limit 100
 ```
 
-### 2. Find what's working
+### Step 2: Generate ideas from gaps and patterns
 ```bash
-ytcli top @channel1 --by engagement --limit 10
-ytcli hooks @channel1
+ytcli ideas --from @inspiration1 --count 10
+```
+Returns ideas combining:
+- Gap-based: topics the channel barely covers (low-frequency keywords)
+- High-performer: topics from their most-viewed videos
+- Each idea includes: `topic`, `reasoning`, `inspired_by` (source videos)
+
+### Step 3: Generate title variations
+```bash
+ytcli titles "chosen topic" --count 10
+```
+Generates titles in 4 patterns:
+- Question: "What Is X?" / "Why Does X Matter?"
+- Number: "7 X Tips" / "Top 5 X Mistakes"
+- How-to: "How to X (Step by Step)"
+- Bracket: "X [Complete Guide]" / "X (You Won't Believe This)"
+
+If similar videos exist in DB, patterns are weighted by what works in your niche.
+
+### Step 4: Get tags
+```bash
+ytcli tags "chosen topic"
+```
+Aggregates tags from similar videos in DB, ranked by frequency.
+
+### Step 5: Study what works in the niche
+```bash
+ytcli hooks @inspiration1 --limit 50
+ytcli top @inspiration1 --by views --limit 10
 ```
 
-### 3. Find gaps
+### Step 6: Mine comments for requests
 ```bash
-ytcli gaps @channel1
+ytcli comments "TOP_VIDEO_URL" --sort top --limit 200
 ```
+Look for: "Can you make a video about...", "I wish someone would explain...", repeated questions.
 
-### 4. Pull comments for pain points
+## Quick version (2 commands)
 ```bash
-ytcli comments "VIDEO_URL" --sort top --limit 200
-```
-
-### 5. Generate ideas
-```bash
-ytcli ideas --from @channel1 --count 10
-```
-
-### 6. Generate titles for best ideas
-```bash
-ytcli titles "chosen topic" --count 5
-```
-
-### 7. Optional: Cross-reference with knowledge base
-```bash
-# Transcribe a reference video
-ytcli transcript "VIDEO_URL" > /tmp/ref.txt
-eureka ingest /tmp/ref.txt --brain-dir ./brain
-eureka discover ./brain --count 10
+ytcli ideas --count 10
+ytcli titles "best idea" --count 5
 ```
 
 ## Tips
-- Comments on top-performing videos are gold for pain points
-- Gaps between two similar channels reveal underserved topics
-- Cross-referencing with Eureka finds non-obvious angles
+- Scan 3-5 channels in your niche for better gap detection
+- Comments on top videos are the highest-signal source of ideas
+- `ytcli gaps` finds what's underserved; `ytcli hooks` tells you how to package it
