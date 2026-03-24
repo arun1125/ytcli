@@ -189,4 +189,18 @@ class TestDB:
         conn.close()
 
 
+class TestGetConnectionMissingDB:
+    def test_get_connection_raises_on_missing_db(self, tmp_data_dir):
+        """get_connection should raise FileNotFoundError if DB doesn't exist."""
+        with pytest.raises(FileNotFoundError, match="Database not initialized"):
+            db.get_connection(tmp_data_dir)
+
+    def test_get_connection_works_after_init(self, tmp_data_dir):
+        """get_connection should work after init_db creates the DB."""
+        db.init_db(tmp_data_dir)
+        conn = db.get_connection(tmp_data_dir)
+        assert conn is not None
+        conn.close()
+
+
 # --- All Tier 5 stubs have been implemented (tags, batch-audio, export) ---

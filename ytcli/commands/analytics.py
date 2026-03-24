@@ -1,11 +1,12 @@
 """Tier 3: Analytics commands (YouTube Data API v3, requires API key)."""
 
-import re
+import hashlib
 
 import click
 
 from ytcli.core import api
 from ytcli.core.output import success, error
+from ytcli.core.utils import extract_video_id as _extract_video_id
 
 
 def _get_api_key(data_dir):
@@ -15,27 +16,6 @@ def _get_api_key(data_dir):
     key = get_config(conn, "api_key")
     conn.close()
     return key
-
-
-def _extract_video_id(url_or_id: str) -> str:
-    """Extract video ID from a YouTube URL or return as-is if already an ID.
-
-    Supports:
-    - https://www.youtube.com/watch?v=VIDEO_ID
-    - https://youtu.be/VIDEO_ID
-    - https://www.youtube.com/embed/VIDEO_ID
-    - Plain VIDEO_ID
-    """
-    # Try v= parameter
-    m = re.search(r'[?&]v=([^&]+)', url_or_id)
-    if m:
-        return m.group(1)
-    # Try youtu.be or embed
-    m = re.search(r'(?:youtu\.be|/embed)/([^?&/]+)', url_or_id)
-    if m:
-        return m.group(1)
-    # Assume it's already a video ID
-    return url_or_id
 
 
 @click.command()
@@ -284,7 +264,7 @@ def comments(ctx, video_url, sort_by, limit):
         now = datetime.now(timezone.utc).isoformat()
         try:
             for i, c in enumerate(comment_list):
-                comment_id = f"{video_id}_{i}_{hash(c['text']) % 100000}"
+                comment_id = hashlib.sha256(f"{video_id}_{c['author']}_{c['text']}".encode()).hexdigest()[:16]
                 conn.execute(
                     "INSERT OR REPLACE INTO comments (id, video_id, author, text, like_count, published_at, scraped_at) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?)",

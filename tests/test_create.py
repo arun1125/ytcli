@@ -7,6 +7,7 @@ from click.testing import CliRunner
 
 from ytcli.cli import cli
 from ytcli.core import db
+from tests.conftest import parse_json
 
 
 @pytest.fixture
@@ -19,15 +20,6 @@ def tmp_data_dir(tmp_path):
     d = str(tmp_path / "ytcli_test")
     db.init_db(d)
     return d
-
-
-def parse_json(output: str) -> dict:
-    """Extract JSON from CLI output, skipping any non-JSON lines."""
-    for line in output.strip().split("\n"):
-        line = line.strip()
-        if line.startswith("{"):
-            return json.loads(line)
-    raise ValueError(f"No JSON found in output: {output!r}")
 
 
 def seed_channel_with_videos(data_dir: str):

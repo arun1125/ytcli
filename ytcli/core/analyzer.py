@@ -229,9 +229,9 @@ def analyze_upload_schedule(videos: list[dict]) -> dict:
         for i in range(1, len(weeks)):
             prev_y, prev_w = weeks[i - 1]
             cur_y, cur_w = weeks[i]
-            # Check if consecutive week
-            prev_date = datetime.strptime(f"{prev_y}-W{prev_w:02d}-1", "%Y-W%W-%w")
-            cur_date = datetime.strptime(f"{cur_y}-W{cur_w:02d}-1", "%Y-W%W-%w")
+            # Check if consecutive week (use fromisocalendar for correct ISO week handling)
+            prev_date = datetime.fromisocalendar(prev_y, prev_w, 1)
+            cur_date = datetime.fromisocalendar(cur_y, cur_w, 1)
             if (cur_date - prev_date).days == 7:
                 current_streak += 1
             else:

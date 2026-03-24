@@ -348,3 +348,30 @@ Working directory: `/Users/arun/Desktop/00_Organized/Agents/work/ytcli/`
 - [x] Implement `batch-audio` command — if input is URL, treat as playlist. If file path, read URLs from file (one per line). Download each via `scraper.download_audio()`. Record in DB. Output JSON summary.
 - [x] Write tests for `export` command — seed DB with channel + videos, test CSV and JSON format output. Test `--format` flag.
 - [x] Implement `export` command — resolve channel, get all videos, format as CSV or JSON, write to file or stdout. Output JSON with file path or inline data.
+
+## Bug Fixes (from code review)
+
+Working directory: `/Users/arun/Desktop/00_Organized/Agents/work/ytcli/`
+Verification: `python3 -m pytest tests/ -v --tb=short`
+
+### Critical
+
+- [x] Fix `analyzer.py` ISO week streak calculation — replace `strptime` with `datetime.fromisocalendar()`. Add test for year-boundary weeks.
+- [x] Fix `scraper.py` `get_channel_videos` — wrap `json.loads` in try/except JSONDecodeError, skip non-JSON lines. Add test.
+- [x] Fix `scraper.py` `download_thumbnail` — remove dead `get_video_metadata` call, return None on failure instead of "". Fix caller.
+- [x] Fix inconsistent exit codes — all commands must `raise SystemExit(1)` after `error()`. Audit compete.py, create.py, channel.py. Add tests.
+
+### High
+
+- [x] Fix `analytics.py` comment IDs — use `hashlib.sha256` instead of `hash()`. Add test for idempotent comment storage.
+- [x] Fix `db.py` `get_connection` — check db_path.exists(), raise clear error. Add test.
+- [x] Fix `download.py` transcript phantom channel — skip DB storage when channel unknown, or fetch metadata first. Add test.
+- [x] Fix `scraper.py` subprocess timeout — add `timeout=300` to `_run_ytdlp`. Add test for timeout handling.
+- [x] Fix `scraper.py` flag injection — add `--` separator before URLs in all functions. Add test.
+
+### Code Quality
+
+- [x] Extract `_extract_video_id` to `core/utils.py`, import from one place. Update download.py and analytics.py.
+- [x] Fix hardcoded "2025" in `create.py` title templates — use `datetime.now().year`.
+- [x] Extract duplicate `parse_json` helper from test files into `tests/conftest.py`.
+- [x] Add `raise SystemExit(1)` to `scraper.py` retry logic — build fresh args list instead of mutating.

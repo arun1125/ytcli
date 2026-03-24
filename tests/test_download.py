@@ -8,20 +8,12 @@ from click.testing import CliRunner
 from unittest.mock import patch, MagicMock
 
 from ytcli.cli import cli
+from tests.conftest import parse_json
 
 
 @pytest.fixture
 def runner():
     return CliRunner()
-
-
-def parse_json(output: str) -> dict:
-    """Extract JSON from CLI output, skipping any non-JSON lines (progress messages)."""
-    for line in output.strip().split("\n"):
-        line = line.strip()
-        if line.startswith("{"):
-            return json.loads(line)
-    raise ValueError(f"No JSON found in output: {output!r}")
 
 
 FAKE_METADATA = {
@@ -422,10 +414,15 @@ class TestTranscript:
 
     @patch("ytcli.commands.download.scraper")
     def test_transcript_stores_in_db(self, mock_scraper, runner, tmp_path):
-        """transcript command stores transcript in DB when DB exists."""
-        from ytcli.core.db import init_db, get_connection
+        """transcript command stores transcript in DB when video exists."""
+        from ytcli.core.db import init_db, get_connection, upsert_channel, upsert_video
         data_dir = str(tmp_path / "ytcli_test")
         init_db(data_dir)
+        # Pre-seed video record so transcript storage works (no phantom records)
+        conn = get_connection(data_dir)
+        upsert_channel(conn, {"id": "UC_test", "name": "Test Channel"})
+        upsert_video(conn, {"id": "dQw4w9WgXcQ", "channel_id": "UC_test", "title": "Test"})
+        conn.close()
         mock_scraper.get_transcript.return_value = "Stored transcript text"
         result = runner.invoke(cli, [
             "--data-dir", data_dir,
@@ -446,9 +443,14 @@ class TestTranscript:
     @patch("ytcli.commands.download.scraper")
     def test_transcript_updates_existing_db_record(self, mock_scraper, runner, tmp_path):
         """transcript command upserts if transcript already exists in DB."""
-        from ytcli.core.db import init_db, get_connection
+        from ytcli.core.db import init_db, get_connection, upsert_channel, upsert_video
         data_dir = str(tmp_path / "ytcli_test")
         init_db(data_dir)
+        # Pre-seed video record so transcript storage works
+        conn = get_connection(data_dir)
+        upsert_channel(conn, {"id": "UC_test", "name": "Test Channel"})
+        upsert_video(conn, {"id": "dQw4w9WgXcQ", "channel_id": "UC_test", "title": "Test"})
+        conn.close()
         # First call
         mock_scraper.get_transcript.return_value = "First version"
         runner.invoke(cli, [
@@ -467,3 +469,27 @@ class TestTranscript:
         ).fetchone()
         conn.close()
         assert row["text"] == "Updated version"
+
+    @patch("ytcli.commands.download.scraper")
+    def test_transcript_no_phantom_channel(self, mock_scraper, runner, tmp_path):
+        """transcript command must not create phantom channel/video records."""
+        from ytcli.core.db import init_db, get_connection
+        data_dir = str(tmp_path / "ytcli_test")
+        init_db(data_dir)
+        mock_scraper.get_transcript.return_value = "Transcript text"
+        result = runner.invoke(cli, [
+            "--data-dir", data_dir,
+            "transcript", "https://youtube.com/watch?v=dQw4w9WgXcQ",
+        ])
+        assert result.exit_code == 0
+        data = parse_json(result.output)
+        assert data["ok"] is True
+        # Verify no phantom channel or video records were created
+        conn = get_connection(data_dir)
+        channels = conn.execute("SELECT COUNT(*) FROM channels").fetchone()[0]
+        videos = conn.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
+        transcripts = conn.execute("SELECT COUNT(*) FROM transcripts").fetchone()[0]
+        conn.close()
+        assert channels == 0, "Should not create phantom channel"
+        assert videos == 0, "Should not create phantom video"
+        assert transcripts == 0, "Should not store transcript without real video"

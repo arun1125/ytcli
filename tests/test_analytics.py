@@ -479,3 +479,35 @@ class TestComments:
         conn.close()
         assert len(rows) == 1
         assert rows[0]["text"] == "Stored comment"
+
+    def test_comments_deterministic_ids(self, runner, init_db):
+        """Comment IDs must be deterministic across runs (sha256, not hash())."""
+        from unittest.mock import patch, MagicMock
+        from ytcli.core.db import get_connection, set_config, upsert_channel, upsert_video
+
+        conn = get_connection(init_db)
+        set_config(conn, "api_key", "TESTKEY")
+        upsert_channel(conn, {"id": "UC123", "name": "Test"})
+        upsert_video(conn, {"id": "vid1", "channel_id": "UC123", "title": "Test Video"})
+        conn.close()
+
+        mock_comments = [
+            {"author": "Alice", "text": "Great video!", "like_count": 5, "published_at": "2024-01-01T00:00:00Z"},
+            {"author": "Bob", "text": "Thanks!", "like_count": 2, "published_at": "2024-01-02T00:00:00Z"},
+        ]
+
+        # Run twice — IDs should be identical
+        for _ in range(2):
+            with patch("ytcli.commands.analytics.api.get_comments", return_value=mock_comments):
+                with patch("ytcli.commands.analytics.api.get_api_client", return_value=MagicMock()):
+                    runner.invoke(cli, ["--data-dir", init_db, "comments", "https://youtube.com/watch?v=vid1"])
+
+        conn = get_connection(init_db)
+        rows = conn.execute("SELECT id FROM comments WHERE video_id = 'vid1' ORDER BY id").fetchall()
+        conn.close()
+        # Should still be exactly 2 rows (not 4), because IDs are deterministic
+        assert len(rows) == 2
+        # Verify IDs are hex strings (from sha256), not random integers
+        for row in rows:
+            assert all(c in "0123456789abcdef" for c in row["id"]), f"ID should be hex: {row['id']}"
+            assert len(row["id"]) == 16

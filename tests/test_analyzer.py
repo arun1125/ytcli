@@ -162,6 +162,23 @@ class TestAnalyzeUploadSchedule:
         result = analyze_upload_schedule(videos)
         assert result["longest_streak_weeks"] >= 4
 
+    def test_streak_across_year_boundary(self):
+        """ISO week streak must work across Dec→Jan year boundary.
+
+        This is the regression test for the strptime→fromisocalendar fix.
+        Dec 23 2024 = ISO week 2024-W52, Dec 30 2024 = ISO week 2025-W01,
+        Jan 6 2025 = ISO week 2025-W02.
+        """
+        videos = _make_videos([
+            ("Dec week", "2024-12-23"),   # ISO 2024-W52
+            ("Year boundary", "2024-12-30"),  # ISO 2025-W01
+            ("Jan week", "2025-01-06"),   # ISO 2025-W02
+            ("Jan week 2", "2025-01-13"), # ISO 2025-W03
+        ])
+        result = analyze_upload_schedule(videos)
+        # All 4 weeks are consecutive ISO weeks
+        assert result["longest_streak_weeks"] == 4
+
     def test_empty_videos(self):
         result = analyze_upload_schedule([])
         assert result["total_videos"] == 0

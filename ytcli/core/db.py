@@ -107,6 +107,8 @@ def init_db(data_dir: str = None) -> Path:
 def get_connection(data_dir: str = None) -> sqlite3.Connection:
     """Return a connection with Row factory and WAL mode."""
     db_path = get_db_path(data_dir)
+    if not db_path.exists():
+        raise FileNotFoundError("Database not initialized. Run 'ytcli init' first.")
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")

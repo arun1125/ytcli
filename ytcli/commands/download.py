@@ -4,6 +4,7 @@ import click
 
 from ytcli.core import scraper
 from ytcli.core.output import success, error, progress
+from ytcli.core.utils import extract_video_id
 
 
 @click.command()
@@ -142,31 +143,24 @@ def transcript(ctx, url, lang):
         progress(f"Fetching transcript for {url} (lang={lang})...")
         text = scraper.get_transcript(url, lang=lang)
 
-        # Store in DB if available
+        # Store in DB only if video already exists (don't create phantom channel/video records)
         try:
             from ytcli.core.db import get_connection
             conn = get_connection(data_dir)
-            # Extract video ID from URL for DB storage
-            video_id = _extract_video_id(url)
+            video_id = extract_video_id(url)
             if video_id:
-                # Ensure video record exists (FK constraint requires channel → video → transcript)
-                conn.execute(
-                    "INSERT INTO channels (id, name) VALUES (?, ?) ON CONFLICT(id) DO NOTHING",
-                    ("unknown", "unknown"),
-                )
-                conn.execute(
-                    "INSERT INTO videos (id, channel_id, title) "
-                    "VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING",
-                    (video_id, "unknown", "unknown"),
-                )
-                conn.execute(
-                    "INSERT INTO transcripts (video_id, text, language, fetched_at) "
-                    "VALUES (?, ?, ?, ?) "
-                    "ON CONFLICT(video_id) DO UPDATE SET text=excluded.text, "
-                    "language=excluded.language, fetched_at=excluded.fetched_at",
-                    (video_id, text, lang, datetime.now(timezone.utc).isoformat()),
-                )
-                conn.commit()
+                existing = conn.execute(
+                    "SELECT id FROM videos WHERE id = ?", (video_id,)
+                ).fetchone()
+                if existing:
+                    conn.execute(
+                        "INSERT INTO transcripts (video_id, text, language, fetched_at) "
+                        "VALUES (?, ?, ?, ?) "
+                        "ON CONFLICT(video_id) DO UPDATE SET text=excluded.text, "
+                        "language=excluded.language, fetched_at=excluded.fetched_at",
+                        (video_id, text, lang, datetime.now(timezone.utc).isoformat()),
+                    )
+                    conn.commit()
             conn.close()
         except Exception:
             pass  # DB not initialized, skip recording
@@ -179,19 +173,6 @@ def transcript(ctx, url, lang):
     except Exception as e:
         error("transcript", str(e))
         raise SystemExit(1)
-
-
-def _extract_video_id(url: str) -> str | None:
-    """Extract YouTube video ID from various URL formats."""
-    import re
-    patterns = [
-        r'(?:v=|/v/|youtu\.be/)([a-zA-Z0-9_-]{11})',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
 
 
 @click.command()
@@ -225,10 +206,16 @@ def thumbnail(ctx, url, output_path):
         progress(f"Downloading thumbnail for {url}...")
         result_path = scraper.download_thumbnail(url, output_dir)
 
+        if result_path is None:
+            error("thumbnail", f"Failed to download thumbnail for {url}")
+            raise SystemExit(1)
+
         success("thumbnail", {
             "output_path": result_path,
             "url": url,
         })
+    except SystemExit:
+        raise
     except Exception as e:
         error("thumbnail", str(e))
         raise SystemExit(1)

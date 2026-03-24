@@ -52,11 +52,11 @@ def scan(ctx, channel, limit):
         video_list = scraper.get_channel_videos(url, limit=limit)
     except Exception as e:
         error("scan", f"Failed to scrape channel: {e}")
-        return
+        raise SystemExit(1)
 
     if not video_list:
         error("scan", f"No videos found for {channel}")
-        return
+        raise SystemExit(1)
 
     # Extract channel info from first video entry
     first = video_list[0]
@@ -99,6 +99,7 @@ def scan(ctx, channel, limit):
         })
     except Exception as e:
         error("scan", f"Database error: {e}")
+        raise SystemExit(1)
     finally:
         conn.close()
 
@@ -136,7 +137,7 @@ def videos(ctx, channel, sort_by, limit):
         if ch is None:
             conn.close()
             error("videos", f"Channel not found: {channel}")
-            return
+            raise SystemExit(1)
         vid_limit = limit if limit is not None else 50
         rows = db_get_videos(conn, ch["id"], sort=sort_by, limit=vid_limit)
         conn.close()
@@ -167,7 +168,7 @@ def search(ctx, query, channel):
             if ch is None:
                 conn.close()
                 error("search", f"Channel not found: {channel}")
-                return
+                raise SystemExit(1)
             channel_id = ch["id"]
         results = db_search_videos(conn, query, channel_id=channel_id)
         conn.close()
@@ -198,13 +199,13 @@ def refresh(ctx, channel):
             ch = get_channel(conn, channel)
             if ch is None:
                 error("refresh", f"Channel not found: {channel}")
-                return
+                raise SystemExit(1)
             channels_to_refresh = [ch]
         else:
             channels_to_refresh = db_get_channels(conn)
             if not channels_to_refresh:
                 error("refresh", "No channels tracked. Use 'scan' to add a channel first.")
-                return
+                raise SystemExit(1)
 
         now = datetime.now(timezone.utc).isoformat()
         total_new = 0
@@ -271,5 +272,6 @@ def refresh(ctx, channel):
         })
     except Exception as e:
         error("refresh", f"Refresh failed: {e}")
+        raise SystemExit(1)
     finally:
         conn.close()

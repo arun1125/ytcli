@@ -23,12 +23,12 @@ def compare(ctx, ch1, ch2):
         ch1_info = get_channel(conn, ch1)
         if not ch1_info:
             error("compare", f"Channel '{ch1}' not found. Run 'ytcli scan {ch1}' first.")
-            return
+            raise SystemExit(1)
 
         ch2_info = get_channel(conn, ch2)
         if not ch2_info:
             error("compare", f"Channel '{ch2}' not found. Run 'ytcli scan {ch2}' first.")
-            return
+            raise SystemExit(1)
 
         ch1_videos = get_videos(conn, ch1_info["id"], limit=500)
         ch2_videos = get_videos(conn, ch2_info["id"], limit=500)
@@ -38,6 +38,7 @@ def compare(ctx, ch1, ch2):
         success("compare", result)
     except Exception as e:
         error("compare", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -54,7 +55,7 @@ def gaps(ctx, channel):
         ch_info = get_channel(conn, channel)
         if not ch_info:
             error("gaps", f"Channel '{channel}' not found. Run 'ytcli scan {channel}' first.")
-            return
+            raise SystemExit(1)
 
         videos = get_videos(conn, ch_info["id"], limit=500)
         conn.close()
@@ -63,6 +64,7 @@ def gaps(ctx, channel):
         success("gaps", result)
     except Exception as e:
         error("gaps", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -80,7 +82,7 @@ def hooks(ctx, channel, limit):
         ch_info = get_channel(conn, channel)
         if not ch_info:
             error("hooks", f"Channel '{channel}' not found. Run 'ytcli scan {channel}' first.")
-            return
+            raise SystemExit(1)
 
         videos = get_videos(conn, ch_info["id"], limit=limit)
         conn.close()
@@ -89,6 +91,7 @@ def hooks(ctx, channel, limit):
         success("hooks", result)
     except Exception as e:
         error("hooks", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -105,7 +108,7 @@ def calendar(ctx, channel):
         ch_info = get_channel(conn, channel)
         if not ch_info:
             error("calendar", f"Channel '{channel}' not found. Run 'ytcli scan {channel}' first.")
-            return
+            raise SystemExit(1)
 
         videos = get_videos(conn, ch_info["id"], limit=500)
         conn.close()
@@ -114,6 +117,7 @@ def calendar(ctx, channel):
         success("calendar", result)
     except Exception as e:
         error("calendar", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -132,7 +136,7 @@ def niche(ctx, query, limit):
 
         if not api_key:
             error("niche", "No API key configured. Run 'ytcli config api_key YOUR_KEY' first.")
-            return
+            raise SystemExit(1)
 
         client = api.get_api_client(api_key)
         results = api.search_youtube(client, query, limit=50)
@@ -161,3 +165,4 @@ def niche(ctx, query, limit):
         })
     except Exception as e:
         error("niche", str(e))
+        raise SystemExit(1)

@@ -1,5 +1,7 @@
 """Tier 5: Creation Assist commands."""
 
+from datetime import datetime
+
 import click
 
 from ytcli.core import analyzer, scraper
@@ -14,13 +16,14 @@ def _generate_title_variations(topic: str) -> list[dict]:
     # Capitalize topic for titles
     topic_cap = topic.title()
     topic_lower = topic.lower()
+    year = datetime.now().year
 
     variations = []
 
     # Question patterns
     variations.append({"title": f"What Is {topic_cap} and Why Should You Care?", "pattern": "question"})
     variations.append({"title": f"Why Does {topic_cap} Matter?", "pattern": "question"})
-    variations.append({"title": f"Is {topic_cap} Worth Learning in 2025?", "pattern": "question"})
+    variations.append({"title": f"Is {topic_cap} Worth Learning in {year}?", "pattern": "question"})
     variations.append({"title": f"What Nobody Tells You About {topic_cap}?", "pattern": "question"})
 
     # Number patterns
@@ -36,7 +39,7 @@ def _generate_title_variations(topic: str) -> list[dict]:
     variations.append({"title": f"{topic_cap} for Beginners — Start Here", "pattern": "how-to"})
 
     # Bracket patterns
-    variations.append({"title": f"{topic_cap} [2025 Guide]", "pattern": "bracket"})
+    variations.append({"title": f"{topic_cap} [{year} Guide]", "pattern": "bracket"})
     variations.append({"title": f"{topic_cap} (You Won't Believe This)", "pattern": "bracket"})
     variations.append({"title": f"I Tried {topic_cap} [Honest Review]", "pattern": "bracket"})
     variations.append({"title": f"{topic_cap} (What I Wish I Knew Earlier)", "pattern": "bracket"})
@@ -62,7 +65,7 @@ def ideas(ctx, from_channel, count):
             if not ch:
                 error("ideas", f"Channel '{from_channel}' not found. Run 'ytcli scan {from_channel}' first.")
                 conn.close()
-                return
+                raise SystemExit(1)
             all_videos = get_videos(conn, ch["id"], limit=500)
         else:
             channels = get_channels(conn)
@@ -74,7 +77,7 @@ def ideas(ctx, from_channel, count):
 
         if not all_videos:
             error("ideas", "No videos in database. Run 'ytcli scan CHANNEL' first.")
-            return
+            raise SystemExit(1)
 
         # Run analysis
         gaps = analyzer.find_content_gaps(all_videos)
@@ -138,6 +141,7 @@ def ideas(ctx, from_channel, count):
         })
     except Exception as e:
         error("ideas", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -197,6 +201,7 @@ def titles(ctx, topic, count):
         success("titles", result_data)
     except Exception as e:
         error("titles", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -249,6 +254,7 @@ def tags(ctx, source):
         })
     except Exception as e:
         error("tags", str(e))
+        raise SystemExit(1)
 
 
 @click.command("batch-audio")
@@ -303,6 +309,7 @@ def batch_audio(ctx, source, fmt):
         })
     except Exception as e:
         error("batch-audio", str(e))
+        raise SystemExit(1)
 
 
 @click.command()
@@ -322,7 +329,7 @@ def export(ctx, channel, fmt):
         if not ch:
             error("export", f"Channel '{channel}' not found. Run 'ytcli scan {channel}' first.")
             conn.close()
-            return
+            raise SystemExit(1)
 
         videos = get_videos(conn, ch["id"], limit=10000)
         conn.close()
@@ -357,3 +364,4 @@ def export(ctx, channel, fmt):
             })
     except Exception as e:
         error("export", str(e))
+        raise SystemExit(1)
