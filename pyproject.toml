@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ytcli"
+version = "0.1.0"
+description = "YouTube CLI for AI agents and creators. Competitor analysis, channel intelligence, downloads, and content ideation."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0",
+    "yt-dlp>=2024.0",
+]
+
+[project.optional-dependencies]
+api = [
+    "google-api-python-client>=2.0",
+    "google-auth-oauthlib>=1.0",
+]
+
+[project.scripts]
+ytcli = "ytcli.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["ytcli*"]
+
+[tool.setuptools.package-data]
+ytcli = ["dashboard/*.html", "skills/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
